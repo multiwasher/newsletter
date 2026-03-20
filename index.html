@@ -349,7 +349,7 @@
         let publishDate = new Date().toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' }).toUpperCase();
 
         let pageData = [
-            { title: "Notícias de Reconhecimento", blocks: [{ type: 'news_left', text: 'Auditoria ISO 14001 e 9001 concluída.', img: '[Foto Auditoria]' }], showAddZone: true },
+            { title: "SOMENGIL & Comunidade", blocks: [{ type: 'news_left', text: 'Auditoria ISO 14001 e 9001 concluída.', img: '[Foto Auditoria]' }], showAddZone: true },
             { 
                 title: "Ambiente", 
                 blocks: [{ type: 'news_full', text: 'Foco na sustentabilidade e ESG.' }],
@@ -373,7 +373,7 @@
                 ], 
                 showAddZone: true
             },
-            { title: "IOT & SEGURO DE SAÚDE", blocks: [{ type: 'news_right', text: 'Atualização do plano de saúde.', img: '[Logo Seguro]' }], showAddZone: true }
+            { title: "SEGURO DE SAÚDE", blocks: [{ type: 'news_right', text: 'Atualização do plano de saúde.', img: '[Logo Seguro]' }], showAddZone: true }
         ];
 
         async function generateAmbienteContent(pIdx) {
@@ -673,7 +673,7 @@
 
         async function generateReportFromSections() {
             const sections = {
-                'Notícias de Reconhecimento': document.getElementById('sectionRecognition').value,
+                'Reconhecimento': document.getElementById('sectionRecognition').value,
                 'Ambiente & ESG': document.getElementById('sectionAmbiente').value,
                 'Feiras & Eventos': document.getElementById('sectionEvents').value,
                 'Melhorias Internas': document.getElementById('sectionImprovements').value,
