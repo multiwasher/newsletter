@@ -202,6 +202,34 @@
             text-align: center;
             margin-top: auto;
             border-radius: 8px;
+            position: relative;
+        }
+
+        .add-zone.hidden {
+            display: none;
+        }
+
+        .toggle-add-zone {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            background: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            width: 20px;
+            height: 20px;
+            padding: 0;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .toggle-add-zone:hover {
+            background: #dc2626;
         }
 
         .add-btn {
@@ -251,16 +279,17 @@
         const apiKey = "AIzaSyC7hhKFpTfCVgLkfLm05bImG4ReHEu95IU"; // Chave de API do Google Gemini configurada
 
         let pageData = [
-            { title: "Notícias de Reconhecimento", blocks: [{ type: 'news_left', text: 'Auditoria ISO 14001 e 9001 concluída.', img: '[Foto Auditoria]' }] },
+            { title: "Notícias de Reconhecimento", blocks: [{ type: 'news_left', text: 'Auditoria ISO 14001 e 9001 concluída.', img: '[Foto Auditoria]' }], showAddZone: true },
             { 
                 title: "Ambiente", 
                 blocks: [{ type: 'news_full', text: 'Foco na sustentabilidade e ESG.' }],
-                isAmbiente: true 
+                isAmbiente: true,
+                showAddZone: true
             },
-            { title: "Feiras & SOMENGIL", blocks: [{ type: 'grid2_img', img1: '[Foto Feira A]', img2: '[Foto Feira B]' }] },
-            { title: "Melhorias Internas I", blocks: [{ type: 'news_full', text: 'Otimização do fluxo de trabalho...' }] },
-            { title: "Melhorias Internas II", blocks: [{ type: 'news_full', text: 'Novos equipamentos na linha...' }] },
-            { title: "Atividades e Outros", blocks: [{ type: 'news_left', text: 'Resumo das atividades mensais.', img: '[Foto Atividade]' }] },
+            { title: "Feiras & SOMENGIL", blocks: [{ type: 'grid2_img', img1: '[Foto Feira A]', img2: '[Foto Feira B]' }], showAddZone: true },
+            { title: "Melhorias Internas I", blocks: [{ type: 'news_full', text: 'Otimização do fluxo de trabalho...' }], showAddZone: true },
+            { title: "Melhorias Internas II", blocks: [{ type: 'news_full', text: 'Novos equipamentos na linha...' }], showAddZone: true },
+            { title: "Atividades e Outros", blocks: [{ type: 'news_left', text: 'Resumo das atividades mensais.', img: '[Foto Atividade]' }], showAddZone: true },
             { 
                 title: "FUN TIME", 
                 blocks: [
@@ -271,9 +300,10 @@
                         questions: ["1. HOBBIE?", "2. MAIOR SONHO?", "3. FOBIA?", "4. LIVRO?", "5. FILME?", "6. PRATO?", "7. CONCERTOS?", "8. CERVEJA?", "9. DESTINO?", "10. CLUBE?"]
                     },
                     { type: 'fun_mystery', title: 'COLABORADOR MISTÉRIO ANTERIOR', name: '[Nome]', img: '[Foto]' }
-                ] 
+                ], 
+                showAddZone: true
             },
-            { title: "IOT & SEGURO DE SAÚDE", blocks: [{ type: 'news_right', text: 'Atualização do plano de saúde.', img: '[Logo Seguro]' }] }
+            { title: "IOT & SEGURO DE SAÚDE", blocks: [{ type: 'news_right', text: 'Atualização do plano de saúde.', img: '[Logo Seguro]' }], showAddZone: true }
         ];
 
         async function generateAmbienteContent(pIdx) {
@@ -453,7 +483,8 @@
                         ${aiButton}
                         <div class="blocks-container">${blocksHtml}</div>
                         
-                        <div class="add-zone">
+                        <div class="add-zone ${page.showAddZone ? '' : 'hidden'}" id="add-zone-${pIdx}">
+                            <button class="toggle-add-zone" title="Esconder zona de adição" onclick="toggleAddZone(${pIdx})">✕</button>
                             <p class="text-[9px] text-slate-400 mb-2 font-bold uppercase tracking-widest">Adicionar Bloco Manual</p>
                             <button class="add-btn" onclick="addBlock(${pIdx}, 'news_left')">+ Notícia Esq</button>
                             <button class="add-btn" onclick="addBlock(${pIdx}, 'news_right')">+ Notícia Dir</button>
@@ -528,12 +559,20 @@
             renderNewsletter();
         }
 
+        function toggleAddZone(pIdx) {
+            pageData[pIdx].showAddZone = !pageData[pIdx].showAddZone;
+            const addZone = document.getElementById(`add-zone-${pIdx}`);
+            if (addZone) {
+                addZone.classList.toggle('hidden');
+            }
+        }
+
         function movePage(pIdx, dir) {
             let t = pIdx + dir;
             if (t >= 0 && t < pageData.length) { [pageData[pIdx], pageData[t]] = [pageData[t], pageData[pIdx]]; renderNewsletter(); }
         }
         function removePage(pIdx) { if(confirm("Eliminar página?")) { pageData.splice(pIdx, 1); renderNewsletter(); } }
-        function addNewPage() { pageData.push({ title: "NOVA PÁGINA", blocks: [] }); renderNewsletter(); }
+        function addNewPage() { pageData.push({ title: "NOVA PÁGINA", blocks: [], showAddZone: true }); renderNewsletter(); }
         function moveBlock(pIdx, bIdx, dir) {
             let t = bIdx + dir;
             if (t >= 0 && t < pageData[pIdx].blocks.length) { [pageData[pIdx].blocks[bIdx], pageData[pIdx].blocks[t]] = [pageData[pIdx].blocks[t], pageData[pIdx].blocks[bIdx]]; renderNewsletter(); }
