@@ -369,7 +369,18 @@
                         subtitle: 'FAÇO PARTE DA EQUIPA SOMENGIL...',
                         questions: ["1. HOBBIE?", "2. MAIOR SONHO?", "3. FOBIA?", "4. LIVRO?", "5. FILME?", "6. PRATO?", "7. CONCERTOS?", "8. CERVEJA?", "9. DESTINO?", "10. CLUBE?"]
                     },
-                    { type: 'fun_mystery', title: 'COLABORADOR MISTÉRIO ANTERIOR', name: '[Nome]', img: '[Foto]' }
+                    { type: 'fun_mystery', title: 'COLABORADOR MISTÉRIO ANTERIOR', name: '[Nome]', img: '[Foto]' },
+                    {
+                        type: 'fun_crossword',
+                        title: 'CRISS-CROSS: DESCUBRA O MUNDO SOMENGIL',
+                        categories: [
+                            { name: 'Empresa e Identidade', words: ['Somengil', 'Aveiro', 'Vagos', 'Tony Ventura', 'Engenharia', 'Inovação', 'Tecnologia', 'Portugal', 'Know-how', 'Especialista', 'Liderança', 'Parceria', 'Consultoria', 'Sustentabilidade', 'Qualidade'] },
+                            { name: 'Produtos e Tecnologia', words: ['Multiwasher', 'Engiwash', 'Healthtech', 'Cabine', 'Automação', 'Sistema', 'Circuito', 'Performance', 'Eficiência', 'Customização', 'Interface', 'Ciclo', 'Manutenção'] },
+                            { name: 'Processos e Higienização', words: ['Lavagem', 'Higienização', 'Desinfeção', 'Esterilização', 'Descarbonização', 'Enxaguamento', 'Secagem', 'Gordura', 'Bactérias', 'HACCP', 'Biofilme', 'Temperatura'] },
+                            { name: 'Setores de Atuação', words: ['Alimentar', 'Padaria', 'Pastelaria', 'Laticínios', 'Talhos', 'Peixaria', 'Catering', 'Healthcare', 'Hotelaria', 'Farmacêutica', 'Bebidas', 'Logística'] },
+                            { name: 'Utensílios e Marketing', words: ['Tabuleiros', 'Formas', 'Caixas', 'Paletes', 'Carrinhos', 'Filtros', 'Prateleiras', 'WashLab', 'Demos', 'WebinLars', 'ROI', 'Eficiência'] }
+                        ]
+                    }
                 ], 
                 showAddZone: true
             },
@@ -612,6 +623,29 @@
                     content = `<div class="bg-slate-800 text-white p-4 rounded-lg flex gap-4 items-center">
                         <div class="image-placeholder w-20 h-20 bg-slate-700 text-[8px]">${block.img}</div>
                         <div><p class="text-[10px] text-blue-300 font-bold uppercase">${block.title}</p><p class="text-lg font-bold" contenteditable="true">${block.name}</p></div>
+                    </div>`;
+                    break;
+                case 'fun_crossword':
+                    const categories = block.categories || [];
+                    const categoryHtml = categories.map(cat => `
+                        <div class="mb-4">
+                            <h4 class="font-bold text-[12px] text-[#6abae7] mb-2 uppercase">${cat.name}</h4>
+                            <div class="flex flex-wrap gap-2">
+                                ${cat.words.map(word => `<span class="bg-blue-100 text-slate-700 px-2 py-1 rounded text-[10px] font-semibold">${word}</span>`).join('')}
+                            </div>
+                        </div>
+                    `).join('');
+                    content = `<div class="bg-blue-50 p-4 border border-blue-200 rounded-lg">
+                        <h3 class="font-black text-[#6abae7] text-center mb-4">${block.title}</h3>
+                        <div class="text-[10px] leading-relaxed">
+                            <p class="mb-3 text-slate-600 italic"><strong>Encaixe as palavras nos espaços em branco:</strong></p>
+                            ${categoryHtml}
+                        </div>
+                        <div class="mt-4 bg-white p-3 rounded border border-slate-300">
+                            <div class="grid grid-cols-10 gap-1">
+                                ${Array(100).fill().map((_, i) => `<input type="text" maxlength="1" class="w-6 h-6 border border-slate-300 text-center text-[9px] focus:border-[#6abae7] focus:ring-1 focus:ring-[#6abae7]" />`).join('')}
+                            </div>
+                        </div>
                     </div>`;
                     break;
             }
