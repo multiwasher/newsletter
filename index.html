@@ -112,6 +112,25 @@
             z-index: 20;
         }
 
+        .page-date-tag {
+            position: absolute;
+            top: 52px;
+            right: 30px;
+            background-color: #64748b;
+            color: white;
+            font-weight: 600;
+            padding: 4px 14px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            z-index: 20;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .page-date-tag:hover {
+            background-color: #475569;
+        }
+
         .hero-title {
             color: #6abae7;
             font-weight: 800;
@@ -259,7 +278,7 @@
         }
 
         @media print {
-            .admin-controls, .block-actions, .add-zone, .btn-mini, .page-management-tools, .ai-btn, [id^="ai-btn"] { display: none !important; }
+            .admin-controls, .block-actions, .add-zone, .btn-mini, .page-management-tools, .ai-btn, [id^="ai-btn"], .page-date-tag { display: none !important; }
             .page-container { margin: 0 !important; box-shadow: none !important; page-break-after: always; }
         }
     </style>
@@ -325,6 +344,8 @@
 
     <script>
         const apiKey = "AIzaSyC7hhKFpTfCVgLkfLm05bImG4ReHEu95IU"; // Chave de API do Google Gemini configurada
+
+        let publishDate = new Date().toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' }).toUpperCase();
 
         let pageData = [
             { title: "Notícias de Reconhecimento", blocks: [{ type: 'news_left', text: 'Auditoria ISO 14001 e 9001 concluída.', img: '[Foto Auditoria]' }], showAddZone: true },
@@ -522,6 +543,7 @@
                         <button class="btn-page-action text-red-400" title="Eliminar" onclick="removePage(${pIdx})">✕</button>
                     </div>
                     <div class="page-number-tag">${pIdx + 1} / ${pageData.length}</div>
+                    <div class="page-date-tag" onclick="editPublishDate()" title="Clique para editar">${publishDate}</div>
                     <div class="page-content">
                         <div class="header-wrapper">
                             <img src="https://static.wixstatic.com/media/a6967f_75229c4789a54802b26ae2ca35bb74d3~mv2.png" class="header-img">
@@ -631,7 +653,13 @@
             document.getElementById('reportModal').classList.remove('hidden');
             document.getElementById('reportContent').focus();
         }
-
+        function editPublishDate() {
+            const newDate = prompt('Introduza o mês/ano (ex: MARÇO 2024 ou MAR/2024):', publishDate);
+            if (newDate && newDate.trim()) {
+                publishDate = newDate.trim().toUpperCase();
+                renderNewsletter();
+            }
+        }
         function closeReportGenerator() {
             document.getElementById('reportModal').classList.add('hidden');
             document.getElementById('sectionRecognition').value = '';
