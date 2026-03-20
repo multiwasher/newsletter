@@ -278,6 +278,12 @@
             50% { opacity: .5; }
         }
 
+        .ws-cell.selected {
+            background-color: #fbbf24 !important;
+            color: #1e293b;
+            font-weight: bold;
+        }
+
         @media print {
             .admin-controls, .block-actions, .add-zone, .btn-mini, .page-management-tools, .ai-btn, [id^="ai-btn"], .page-date-tag { display: none !important; }
             .page-container { margin: 0 !important; box-shadow: none !important; page-break-after: always; }
@@ -371,15 +377,9 @@
                     },
                     { type: 'fun_mystery', title: 'COLABORADOR MISTÉRIO ANTERIOR', name: '[Nome]', img: '[Foto]' },
                     {
-                        type: 'fun_crossword',
-                        title: 'CRISS-CROSS: DESCUBRA O MUNDO SOMENGIL',
-                        categories: [
-                            { name: 'Empresa e Identidade', words: ['Somengil', 'Aveiro', 'Vagos', 'Tony Ventura', 'Engenharia', 'Inovação', 'Tecnologia', 'Portugal', 'Know-how', 'Especialista', 'Liderança', 'Parceria', 'Consultoria', 'Sustentabilidade', 'Qualidade'] },
-                            { name: 'Produtos e Tecnologia', words: ['Multiwasher', 'Engiwash', 'Healthtech', 'Cabine', 'Automação', 'Sistema', 'Circuito', 'Performance', 'Eficiência', 'Customização', 'Interface', 'Ciclo', 'Manutenção'] },
-                            { name: 'Processos e Higienização', words: ['Lavagem', 'Higienização', 'Desinfeção', 'Esterilização', 'Descarbonização', 'Enxaguamento', 'Secagem', 'Gordura', 'Bactérias', 'HACCP', 'Biofilme', 'Temperatura'] },
-                            { name: 'Setores de Atuação', words: ['Alimentar', 'Padaria', 'Pastelaria', 'Laticínios', 'Talhos', 'Peixaria', 'Catering', 'Healthcare', 'Hotelaria', 'Farmacêutica', 'Bebidas', 'Logística'] },
-                            { name: 'Utensílios e Marketing', words: ['Tabuleiros', 'Formas', 'Caixas', 'Paletes', 'Carrinhos', 'Filtros', 'Prateleiras', 'WashLab', 'Demos', 'WebinLars', 'ROI', 'Eficiência'] }
-                        ]
+                        type: 'fun_wordsearch',
+                        title: 'CAÇA PALAVRAS: MUNDO SOMENGIL',
+                        words: ['SOMENGIL', 'MULTIWASHER', 'PORTUGAL', 'TECNOLOGIA', 'HIGIENIZACAO', 'INOVACAO', 'QUALIDADE', 'SUSTENTABILIDADE', 'ENGIWASH', 'HEALTHTECH']
                     }
                 ], 
                 showAddZone: true
@@ -535,6 +535,82 @@
             return blocks;
         }
 
+        function generateWordSearch(words) {
+            // Set grid size (10x10 for word search)
+            const gridSize = 10;
+            const grid = Array(gridSize).fill(null).map(() => Array(gridSize).fill(''));
+            
+            // Normalize words: uppercase, no accents
+            const normalizedWords = words.map(w => w.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
+            
+            // Directions: horizontal, vertical, diagonal
+            const directions = [
+                { dx: 1, dy: 0 },   // right
+                { dx: -1, dy: 0 },  // left
+                { dx: 0, dy: 1 },   // down
+                { dx: 0, dy: -1 },  // up
+                { dx: 1, dy: 1 },   // diag down-right
+                { dx: 1, dy: -1 },  // diag down-left
+                { dx: -1, dy: 1 },  // diag up-right
+                { dx: -1, dy: -1 }  // diag up-left
+            ];
+            
+            // Place each word
+            const placedWords = [];
+            for (let word of normalizedWords) {
+                let placed = false;
+                let attempts = 0;
+                
+                while (!placed && attempts < 50) {
+                    const row = Math.floor(Math.random() * gridSize);
+                    const col = Math.floor(Math.random() * gridSize);
+                    const dir = directions[Math.floor(Math.random() * directions.length)];
+                    
+                    // Check if word fits
+                    let canPlace = true;
+                    for (let i = 0; i < word.length; i++) {
+                        const r = row + dir.dy * i;
+                        const c = col + dir.dx * i;
+                        
+                        if (r < 0 || r >= gridSize || c < 0 || c >= gridSize) {
+                            canPlace = false;
+                            break;
+                        }
+                        
+                        if (grid[r][c] !== '' && grid[r][c] !== word[i]) {
+                            canPlace = false;
+                            break;
+                        }
+                    }
+                    
+                    // Place word if possible
+                    if (canPlace) {
+                        for (let i = 0; i < word.length; i++) {
+                            const r = row + dir.dy * i;
+                            const c = col + dir.dx * i;
+                            grid[r][c] = word[i];
+                        }
+                        placedWords.push(word);
+                        placed = true;
+                    }
+                    
+                    attempts++;
+                }
+            }
+            
+            // Fill remaining cells with random letters
+            const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            for (let i = 0; i < gridSize; i++) {
+                for (let j = 0; j < gridSize; j++) {
+                    if (grid[i][j] === '') {
+                        grid[i][j] = letters[Math.floor(Math.random() * letters.length)];
+                    }
+                }
+            }
+            
+            return { grid, words: placedWords };
+        }
+
         function renderNewsletter() {
             const container = document.getElementById('newsletter-body');
             container.innerHTML = '';
@@ -580,6 +656,16 @@
                 `;
                 container.appendChild(article);
             });
+
+            // Adiciona event listeners para células do word search
+            setTimeout(() => {
+                document.querySelectorAll('.ws-cell').forEach(cell => {
+                    cell.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        this.classList.toggle('selected');
+                    });
+                });
+            }, 100);
         }
 
         function renderBlock(block, pIdx, bIdx) {
@@ -625,25 +711,18 @@
                         <div><p class="text-[10px] text-blue-300 font-bold uppercase">${block.title}</p><p class="text-lg font-bold" contenteditable="true">${block.name}</p></div>
                     </div>`;
                     break;
-                case 'fun_crossword':
-                    const categories = block.categories || [];
-                    const categoryHtml = categories.map(cat => `
-                        <div class="mb-4">
-                            <h4 class="font-bold text-[12px] text-[#6abae7] mb-2 uppercase">${cat.name}</h4>
-                            <div class="flex flex-wrap gap-2">
-                                ${cat.words.map(word => `<span class="bg-blue-100 text-slate-700 px-2 py-1 rounded text-[10px] font-semibold">${word}</span>`).join('')}
-                            </div>
-                        </div>
-                    `).join('');
+                case 'fun_wordsearch':
+                    const puzzle = generateWordSearch(block.words || []);
+                    const gridHtml = puzzle.grid.map((row, rIdx) => `<span class="flex gap-1">${row.map((letter, cIdx) => `<span class="ws-cell w-6 h-6 border border-slate-300 flex items-center justify-center text-[9px] font-bold bg-white text-slate-700 cursor-pointer select-none hover:bg-blue-100 transition-colors" data-row="${rIdx}" data-col="${cIdx}">${letter}</span>`).join('')}</span>`).join('');
+                    const wordListHtml = puzzle.words.map(word => `<span class="bg-blue-100 text-slate-700 px-2 py-1 rounded text-[10px] font-semibold">${word}</span>`).join('');
                     content = `<div class="bg-blue-50 p-4 border border-blue-200 rounded-lg">
-                        <h3 class="font-black text-[#6abae7] text-center mb-4">${block.title}</h3>
-                        <div class="text-[10px] leading-relaxed">
-                            <p class="mb-3 text-slate-600 italic"><strong>Encaixe as palavras nos espaços em branco:</strong></p>
-                            ${categoryHtml}
-                        </div>
-                        <div class="mt-4 bg-white p-3 rounded border border-slate-300">
-                            <div class="grid grid-cols-10 gap-1">
-                                ${Array(100).fill().map((_, i) => `<input type="text" maxlength="1" class="w-6 h-6 border border-slate-300 text-center text-[9px] focus:border-[#6abae7] focus:ring-1 focus:ring-[#6abae7]" />`).join('')}
+                        <h3 class="font-black text-[#6abae7] text-center mb-3">${block.title}</h3>
+                        <p class="text-[9px] text-slate-600 mb-3 italic text-center"><strong>Encontre as palavras escondidas na grelha! (clique para destacar)</strong></p>
+                        <div class="flex gap-6 justify-between">
+                            <div class="ws-grid flex flex-col gap-1">${gridHtml}</div>
+                            <div class="flex flex-col gap-2 min-w-40">
+                                <p class="text-[11px] font-bold text-slate-700 mb-2">PALAVRAS:</p>
+                                <div class="flex flex-wrap gap-2">${wordListHtml}</div>
                             </div>
                         </div>
                     </div>`;
