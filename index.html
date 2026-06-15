@@ -242,6 +242,48 @@
             line-height: 1.2;
         }
 
+        .text-editor {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .text-editor-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            font-size: 10px;
+            color: #64748b;
+        }
+
+        .text-editor-toolbar label {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .text-editor-toolbar select,
+        .text-editor-toolbar input[type="color"] {
+            height: 24px;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            background: white;
+            padding: 0 4px;
+            font-size: 10px;
+        }
+
+        .text-editor-input {
+            width: 100%;
+            min-height: 100%;
+            outline: none;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
         .quiz-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -683,6 +725,68 @@
             `;
         }
 
+        function createTextEditorHtml(pIdx, bIdx, field, text, options = {}) {
+            const sizes = [10, 11, 12, 14, 16, 18, 20, 24];
+            const currentSize = options.size || 11;
+            const currentColor = options.color || '#1e293b';
+            const sizeOptions = sizes.map(size => `<option value="${size}" ${size === currentSize ? 'selected' : ''}>${size}px</option>`).join('');
+
+            return `
+                <div class="text-editor">
+                    <div class="text-editor-toolbar">
+                        <label>Tamanho
+                            <select onchange="updateBlockTextStyle(${pIdx}, ${bIdx}, '${field}', 'size', this.value)">${sizeOptions}</select>
+                        </label>
+                        <label>Cor
+                            <input type="color" value="${currentColor}" onchange="updateBlockTextStyle(${pIdx}, ${bIdx}, '${field}', 'color', this.value)">
+                        </label>
+                    </div>
+                    <div class="text-editor-input" contenteditable="true" oninput="updateBlockText(${pIdx}, ${bIdx}, '${field}', this)" style="font-size: ${currentSize}px; color: ${currentColor}; ${options.extraStyle || ''}">${text || ''}</div>
+                </div>
+            `;
+        }
+
+        function setBlockFieldValue(target, fieldPath, value) {
+            const parts = fieldPath.replace(/\]/g, '').split(/\.|\[/).filter(Boolean);
+            let current = target;
+
+            for (let index = 0; index < parts.length - 1; index++) {
+                const key = parts[index];
+                const nextKey = parts[index + 1];
+                current = current[key];
+
+                if (current === undefined || current === null) {
+                    return;
+                }
+
+                if (Array.isArray(current) && !Number.isNaN(Number(nextKey))) {
+                    current = current[Number(nextKey)];
+                    index++;
+                }
+            }
+
+            if (current !== undefined && current !== null) {
+                current[parts[parts.length - 1]] = value;
+            }
+        }
+
+        function updateBlockText(pIdx, bIdx, field, element) {
+            const block = pageData[pIdx]?.blocks?.[bIdx];
+            if (!block) return;
+
+            setBlockFieldValue(block, field, element.innerText);
+        }
+
+        function updateBlockTextStyle(pIdx, bIdx, field, property, value) {
+            const block = pageData[pIdx]?.blocks?.[bIdx];
+            if (!block) return;
+
+            const normalizedValue = property === 'size' ? Number(value) : value;
+            const stateKey = property === 'size' ? 'Size' : 'Color';
+            setBlockFieldValue(block, `${field}${stateKey}`, normalizedValue);
+            renderNewsletter();
+        }
+
         function handleImageUpload(event, pIdx, bIdx, field) {
             const file = event.target.files && event.target.files[0];
             if (!file) return;
@@ -773,19 +877,19 @@
 
             switch(block.type) {
                 case 'news_left':
-                    content = `<div class="grid grid-cols-2 gap-4">${createImageUploadHtml(pIdx, bIdx, 'imgSrc', 'Foto', block.imgSrc, block.img || 'Clique para carregar')}<div class="text-[11px] leading-relaxed" contenteditable="true">${block.text}</div></div>`;
+                    content = `<div class="grid grid-cols-2 gap-4">${createImageUploadHtml(pIdx, bIdx, 'imgSrc', 'Foto', block.imgSrc, block.img || 'Clique para carregar')}${createTextEditorHtml(pIdx, bIdx, 'text', block.text, { size: block.textSize || 11, color: block.textColor || '#1e293b' })}</div>`;
                     break;
                 case 'news_right':
-                    content = `<div class="grid grid-cols-2 gap-4"><div class="text-[11px] leading-relaxed" contenteditable="true">${block.text}</div>${createImageUploadHtml(pIdx, bIdx, 'imgSrc', 'Foto', block.imgSrc, block.img || 'Clique para carregar')}</div>`;
+                    content = `<div class="grid grid-cols-2 gap-4">${createTextEditorHtml(pIdx, bIdx, 'text', block.text, { size: block.textSize || 11, color: block.textColor || '#1e293b' })}${createImageUploadHtml(pIdx, bIdx, 'imgSrc', 'Foto', block.imgSrc, block.img || 'Clique para carregar')}</div>`;
                     break;
                 case 'news_full':
-                    content = `<div class="text-[11px] leading-relaxed pl-3 py-2 ${aiStyle}" contenteditable="true">${block.text}</div>`;
+                    content = `${createTextEditorHtml(pIdx, bIdx, 'text', block.text, { size: block.textSize || 11, color: block.textColor || '#1e293b', extraStyle: 'padding-left: 0.75rem; padding-top: 0.5rem; padding-bottom: 0.5rem;' })}`;
                     break;
                 case 'news_grid':
                     const gridItems = block.items.map((item, idx) => `
                         <div class="border-b border-slate-200 pb-2 mb-2">
                             <p class="font-bold text-[11px] text-slate-700 leading-tight">${item.title}</p>
-                            <p class="text-[10px] text-slate-600 leading-snug py-1" contenteditable="true">${item.text}</p>
+                            ${createTextEditorHtml(pIdx, bIdx, `items[${idx}].text`, item.text, { size: item.textSize || 10, color: item.textColor || '#475569', extraStyle: 'padding: 0.25rem 0;' })}
                             <p class="text-[9px] text-blue-600 italic font-medium">— ${item.source}</p>
                         </div>
                     `).join('');
@@ -801,7 +905,7 @@
                 case 'fun_mystery':
                     content = `<div class="bg-slate-800 text-white p-4 rounded-lg flex gap-4 items-center">
                         ${createImageUploadHtml(pIdx, bIdx, 'imgSrc', 'Foto', block.imgSrc, block.img || 'Clique para carregar', 'min-height: 5rem; width: 5rem; height: 5rem; flex-shrink: 0;')}
-                        <div><p class="text-[10px] text-blue-300 font-bold uppercase">${block.title}</p><p class="text-lg font-bold" contenteditable="true">${block.name}</p></div>
+                        <div><p class="text-[10px] text-blue-300 font-bold uppercase">${block.title}</p>${createTextEditorHtml(pIdx, bIdx, 'name', block.name, { size: block.nameSize || 18, color: block.nameColor || '#ffffff', extraStyle: 'font-weight: 700; background: transparent;' })}</div>
                     </div>`;
                     break;
                 case 'fun_wordsearch':
@@ -827,10 +931,11 @@
 
         function addBlock(pIdx, type) {
             const templates = {
-                news_left: { type: 'news_left', text: 'Inserir texto...', img: '[Imagem]' },
-                news_right: { type: 'news_right', text: 'Inserir texto...', img: '[Imagem]' },
-                news_full: { type: 'news_full', text: 'Inserir texto completo...' },
-                grid2_img: { type: 'grid2_img', img1: '[Foto 1]', img2: '[Foto 2]' }
+                news_left: { type: 'news_left', text: 'Inserir texto...', img: '[Imagem]', textSize: 11, textColor: '#1e293b' },
+                news_right: { type: 'news_right', text: 'Inserir texto...', img: '[Imagem]', textSize: 11, textColor: '#1e293b' },
+                news_full: { type: 'news_full', text: 'Inserir texto completo...', textSize: 11, textColor: '#1e293b' },
+                grid2_img: { type: 'grid2_img', img1: '[Foto 1]', img2: '[Foto 2]' },
+                news_grid: { type: 'news_grid', items: [] }
             };
             pageData[pIdx].blocks.push(templates[type]);
             renderNewsletter();
