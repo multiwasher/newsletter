@@ -160,6 +160,56 @@
             background: #f8fafc;
         }
 
+        .content-block.auto-fit-compact {
+            margin-bottom: 0.5rem;
+            padding: 8px;
+        }
+
+        .content-block.auto-fit-compact .image-upload,
+        .content-block.auto-fit-compact .image-upload-preview {
+            min-height: 90px;
+        }
+
+        .content-block.auto-fit-compact .text-editor-toolbar {
+            gap: 4px;
+            font-size: 9px;
+        }
+
+        .content-block.auto-fit-compact .text-editor-input {
+            font-size: 10px;
+            line-height: 1.25;
+        }
+
+        .content-block.auto-fit-compact-strong {
+            margin-bottom: 0.35rem;
+            padding: 6px;
+        }
+
+        .content-block.auto-fit-compact-strong .image-upload,
+        .content-block.auto-fit-compact-strong .image-upload-preview {
+            min-height: 74px;
+        }
+
+        .content-block.auto-fit-fun-pair .quiz-grid {
+            gap: 8px;
+            font-size: 9px;
+        }
+
+        .content-block.auto-fit-fun-pair .quiz-answer {
+            min-height: 14px;
+        }
+
+        .content-block.auto-fit-fun-pair .ws-grid,
+        .content-block.auto-fit-fun-pair .ws-grid .flex {
+            gap: 2px !important;
+        }
+
+        .content-block.auto-fit-fun-pair .ws-cell {
+            width: 20px;
+            height: 20px;
+            font-size: 8px;
+        }
+
         .block-actions {
             position: absolute;
             right: 8px;
@@ -495,6 +545,13 @@
             flex: 0 0 auto;
         }
 
+        .content-block.block-fun-mystery .image-upload {
+            width: 70%;
+            min-height: 84px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
         .mystery-resize-handle {
             position: absolute;
             right: 0;
@@ -592,6 +649,32 @@
             .text-editor-toolbar, .floating-image-header, .floating-image-resize-handle, .floating-drag-handle,
             .floating-image-upload input, .floating-text-toolbar, .toggle-add-zone { display: none !important; }
             .page-container { margin: 0 !important; box-shadow: none !important; page-break-after: always; }
+            .page-container.fun-time-page {
+                height: 297mm;
+                position: relative;
+                overflow: hidden;
+            }
+            .page-container.fun-time-page .page-content {
+                padding-bottom: 130px !important;
+            }
+            .page-container.fun-time-page .blocks-container {
+                transform-origin: top left;
+                transform: scale(var(--fun-time-print-scale, 1));
+                width: calc(100% / var(--fun-time-print-scale, 1));
+                height: var(--fun-time-print-height, auto);
+                overflow: hidden;
+            }
+            .page-container.fun-time-page .footer-wrapper {
+                position: absolute;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                margin-top: 0 !important;
+                z-index: 2;
+                background: white;
+                page-break-inside: avoid;
+                break-inside: avoid-page;
+            }
             .content-block { page-break-inside: avoid; break-inside: avoid-page; }
             .content-block.block-fun-who,
             .content-block.block-fun-mystery,
@@ -1379,6 +1462,69 @@
             });
         }
 
+        function applyFunPairAutoFit() {
+            document.querySelectorAll('.page-container').forEach(page => {
+                const blocksContainer = page.querySelector('.blocks-container');
+                const footer = page.querySelector('.footer-wrapper');
+                if (!blocksContainer || !footer) return;
+
+                const allBlocks = Array.from(blocksContainer.querySelectorAll('.content-block'));
+                allBlocks.forEach(block => {
+                    block.classList.remove('auto-fit-compact', 'auto-fit-compact-strong', 'auto-fit-fun-pair');
+                });
+
+                const whoBlock = blocksContainer.querySelector('.content-block.block-fun-who');
+                const wordsearchBlock = blocksContainer.querySelector('.content-block.block-fun-wordsearch');
+                if (!whoBlock || !wordsearchBlock) return;
+
+                const fitsPair = () => {
+                    const wsRect = wordsearchBlock.getBoundingClientRect();
+                    const footerTop = footer.getBoundingClientRect().top;
+                    return wsRect.bottom <= (footerTop - 8);
+                };
+
+                const candidates = allBlocks.filter(block => {
+                    if (block === whoBlock || block === wordsearchBlock) return false;
+                    if (block.classList.contains('block-fun-who') || block.classList.contains('block-fun-wordsearch')) return false;
+                    return true;
+                });
+
+                candidates.forEach(block => block.classList.add('auto-fit-compact'));
+                if (fitsPair()) return;
+
+                candidates.forEach(block => block.classList.add('auto-fit-compact-strong'));
+                if (fitsPair()) return;
+
+                whoBlock.classList.add('auto-fit-fun-pair');
+                wordsearchBlock.classList.add('auto-fit-fun-pair');
+            });
+        }
+
+        function isFunTimePageTitle(title) {
+            return (title || '').trim().toUpperCase() === 'FUN TIME';
+        }
+
+        function applyFunTimePrintFit() {
+            document.querySelectorAll('.page-container.fun-time-page').forEach(page => {
+                const blocksContainer = page.querySelector('.blocks-container');
+                const footer = page.querySelector('.footer-wrapper');
+                if (!blocksContainer || !footer) return;
+
+                const pageRect = page.getBoundingClientRect();
+                const blocksRect = blocksContainer.getBoundingClientRect();
+                const footerRect = footer.getBoundingClientRect();
+                const blocksTopInPage = blocksRect.top - pageRect.top;
+                const footerHeight = Math.ceil(footerRect.height);
+                const availableHeight = Math.max(120, Math.floor(pageRect.height - blocksTopInPage - footerHeight - 8));
+                const contentHeight = Math.max(1, Math.ceil(blocksRect.height));
+                const scale = Math.min(1, availableHeight / contentHeight);
+                const safeScale = Math.max(0.65, scale);
+
+                page.style.setProperty('--fun-time-print-scale', safeScale.toFixed(4));
+                page.style.setProperty('--fun-time-print-height', `${Math.ceil(contentHeight * safeScale)}px`);
+            });
+        }
+
         function removeFloatingBlock(event, pIdx, bIdx) {
             if (event) {
                 event.preventDefault();
@@ -1420,16 +1566,24 @@
             
             pageData.forEach((page, pIdx) => {
                 const article = document.createElement('article');
-                article.className = 'page-container';
+                const isFunTimePage = isFunTimePageTitle(page.title);
+                article.className = isFunTimePage ? 'page-container fun-time-page' : 'page-container';
                 
                 let aiButton = page.isAmbiente ? 
                     `<button id="ai-btn-${pIdx}" onclick="generateAmbienteContent(${pIdx})" class="ai-btn mb-4 w-full py-2 bg-gradient-to-r from-green-600 to-blue-600 text-white font-extrabold rounded-lg shadow-sm hover:shadow-md transition-all text-xs">✨ GERAR 5 NOTÍCIAS DAS FONTES (IA)</button>` : '';
 
-                let blocksHtml = page.blocks
+                let blocksToRender = page.blocks
                     .map((block, bIdx) => ({ block, bIdx }))
-                    .filter(item => item.block.type !== 'floating_image' && item.block.type !== 'floating_text')
-                    .map(item => renderBlock(item.block, pIdx, item.bIdx))
-                    .join('');
+                    .filter(item => item.block.type !== 'floating_image' && item.block.type !== 'floating_text');
+
+                if (isFunTimePage) {
+                    const preferredOrder = ['fun_who', 'fun_mystery', 'fun_wordsearch'];
+                    blocksToRender = blocksToRender
+                        .filter(item => preferredOrder.includes(item.block.type))
+                        .sort((a, b) => preferredOrder.indexOf(a.block.type) - preferredOrder.indexOf(b.block.type));
+                }
+
+                let blocksHtml = blocksToRender.map(item => renderBlock(item.block, pIdx, item.bIdx)).join('');
 
                 article.innerHTML = `
                     <div class="page-management-tools">
@@ -1453,7 +1607,7 @@
                         ${aiButton}
                         <div class="blocks-container">${blocksHtml}</div>
                         
-                        <div class="add-zone ${page.showAddZone ? '' : 'hidden'}" id="add-zone-${pIdx}">
+                        <div class="add-zone ${(page.showAddZone && !isFunTimePage) ? '' : 'hidden'}" id="add-zone-${pIdx}">
                             <button class="toggle-add-zone" title="Esconder zona de adição" onclick="toggleAddZone(${pIdx})">✕</button>
                             <p class="text-[9px] text-slate-400 mb-2 font-bold uppercase tracking-widest">Adicionar Bloco Manual</p>
                             <button class="add-btn" onclick="addBlock(${pIdx}, 'news_left')">+ Notícia Esq</button>
@@ -1473,7 +1627,10 @@
 
             // Adiciona event listeners para células do word search
             setTimeout(() => {
+                applyFunPairAutoFit();
                 syncMysteryPhotoSize();
+                applyFunPairAutoFit();
+                applyFunTimePrintFit();
 
                 document.querySelectorAll('.ws-cell').forEach(cell => {
                     cell.addEventListener('click', function(e) {
@@ -1540,11 +1697,9 @@
                     content = `<div class="bg-blue-50/50 p-4 border border-blue-100 rounded-lg"><h3 class="font-black text-[#6abae7] text-center mb-4">${block.title}</h3><div class="quiz-grid">${items}</div></div>`;
                     break;
                 case 'fun_mystery':
-                    const mysteryWidth = block.width || 50;
-                    content = `<div class="mystery-block bg-slate-800 text-white p-4 rounded-lg flex gap-4" data-page="${pIdx}" data-block="${bIdx}" style="width: ${mysteryWidth}%; cursor: grab; align-items: stretch;" onpointerdown="startMysteryResize(event, this, ${pIdx}, ${bIdx})">
-                        ${createImageUploadHtml(pIdx, bIdx, 'imgSrc', 'Foto', block.imgSrc, block.img || 'Clique para carregar', 'height: auto; min-height: 0;')}
-                        <div><p class="text-[10px] text-blue-300 font-bold uppercase">${block.title}</p>${createTextEditorHtml(pIdx, bIdx, 'name', block.name, { size: block.nameSize || 18, color: block.nameColor || '#ffffff', extraStyle: 'font-weight: 700; background: transparent;' })}</div>
-                        <div class="mystery-resize-handle" title="Redimensionar"></div>
+                    content = `<div class="grid grid-cols-2 gap-4">
+                        ${createTextEditorHtml(pIdx, bIdx, 'name', block.name, { size: block.nameSize || 16, color: block.nameColor || '#1e293b', extraStyle: 'font-weight: 700;' })}
+                        ${createImageUploadHtml(pIdx, bIdx, 'imgSrc', 'Foto', block.imgSrc, block.img || 'Clique para carregar')}
                     </div>`;
                     break;
                 case 'fun_wordsearch':
@@ -1751,6 +1906,16 @@ FORMATO JSON OBRIGATÓRIO - retorna APENAS isto, sem comentários:
                 btn.disabled = false;
             }
         }
+
+        window.addEventListener('resize', () => {
+            applyFunPairAutoFit();
+            applyFunTimePrintFit();
+        });
+
+        window.addEventListener('beforeprint', () => {
+            applyFunPairAutoFit();
+            applyFunTimePrintFit();
+        });
 
         window.onload = renderNewsletter;
     </script>
