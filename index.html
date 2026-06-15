@@ -243,6 +243,99 @@
             line-height: 1.2;
         }
 
+        .floating-image-layer {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 15;
+        }
+
+        .floating-image-block {
+            position: absolute;
+            width: 220px;
+            background: rgba(255, 255, 255, 0.96);
+            border: 1px solid #cbd5e1;
+            border-radius: 15px;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+            overflow: hidden;
+            pointer-events: auto;
+            user-select: none;
+        }
+
+        .floating-image-block.dragging {
+            box-shadow: 0 14px 36px rgba(15, 23, 42, 0.2);
+            cursor: grabbing;
+        }
+
+        .floating-image-block.resizing {
+            box-shadow: 0 14px 36px rgba(15, 23, 42, 0.2);
+        }
+
+        .floating-image-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 6px 8px;
+            background: #eff6ff;
+            border-bottom: 1px solid #dbeafe;
+            font-size: 10px;
+            font-weight: 700;
+            color: #1d4ed8;
+            cursor: grab;
+        }
+
+        .floating-image-upload {
+            position: relative;
+            display: block;
+            width: 100%;
+            min-height: 160px;
+            cursor: pointer;
+            background: #f8fafc;
+        }
+
+        .floating-image-upload input {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .floating-image-upload-preview {
+            width: 100%;
+            height: 100%;
+            min-height: 160px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .floating-image-placeholder {
+            min-height: 160px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px;
+            text-align: center;
+            color: #64748b;
+            font-size: 11px;
+            line-height: 1.3;
+        }
+
+        .floating-image-resize-handle {
+            position: absolute;
+            right: 4px;
+            bottom: 4px;
+            width: 14px;
+            height: 14px;
+            border-radius: 4px;
+            background: rgba(29, 78, 216, 0.95);
+            border: 2px solid white;
+            cursor: nwse-resize;
+            z-index: 3;
+        }
+
         .text-editor {
             display: flex;
             flex-direction: column;
@@ -486,6 +579,9 @@
             },
             { title: "SEGURO DE SAÚDE", blocks: [{ type: 'news_right', text: 'Atualização do plano de saúde.', img: '[Logo Seguro]' }], showAddZone: true }
         ];
+
+        let floatingDragState = null;
+        let floatingResizeState = null;
 
         async function generateAmbienteContent(pIdx) {
             const btn = document.getElementById(`ai-btn-${pIdx}`);
@@ -804,9 +900,179 @@
                 if (!block) return;
 
                 block[field] = loadEvent.target.result;
+
+                if (block.type === 'floating_image') {
+                    const img = new Image();
+                    img.onload = function() {
+                        block.aspectRatio = img.naturalWidth && img.naturalHeight
+                            ? img.naturalWidth / img.naturalHeight
+                            : (block.aspectRatio || 1);
+                        if (!block.width || !block.height) {
+                            block.width = 240;
+                            block.height = Math.max(80, Math.round(block.width / block.aspectRatio));
+                        }
+                        renderNewsletter();
+                    };
+                    img.src = loadEvent.target.result;
+                    return;
+                }
+
                 renderNewsletter();
             };
             reader.readAsDataURL(file);
+        }
+
+        function createFloatingImageHtml(pIdx, bIdx, block) {
+            const left = block.x ?? 80;
+            const top = block.y ?? 180;
+            const width = block.width ?? 220;
+            const height = block.height ?? 220;
+            const title = block.title || 'Imagem flutuante';
+            const preview = block.src
+                ? `<img src="${block.src}" alt="${title}" class="floating-image-upload-preview">`
+                : `<div class="floating-image-placeholder">Clique para carregar uma imagem</div>`;
+
+            return `
+                <div class="floating-image-block" data-page="${pIdx}" data-block="${bIdx}" style="left: ${left}px; top: ${top}px; width: ${width}px; height: ${height}px;">
+                    <div class="floating-image-header">
+                        <span class="floating-drag-handle">⠿ Arrastar</span>
+                        <span>${title}</span>
+                    </div>
+                    <label class="floating-image-upload" style="height: calc(100% - 31px);">
+                        <input type="file" accept="image/*" onchange="handleImageUpload(event, ${pIdx}, ${bIdx}, 'src')">
+                        ${preview}
+                    </label>
+                    <div class="floating-image-resize-handle" title="Redimensionar"></div>
+                </div>
+            `;
+        }
+
+        function startFloatingDrag(event, element) {
+            if (event.button !== 0) return;
+
+            const pageIdx = Number(element.dataset.page);
+            const blockIdx = Number(element.dataset.block);
+            const block = pageData[pageIdx]?.blocks?.[blockIdx];
+            if (!block) return;
+
+            const container = element.closest('.page-container');
+            if (!container) return;
+
+            const containerRect = container.getBoundingClientRect();
+            const elementRect = element.getBoundingClientRect();
+            const offsetX = event.clientX - elementRect.left;
+            const offsetY = event.clientY - elementRect.top;
+
+            floatingDragState = {
+                pageIdx,
+                blockIdx,
+                element,
+                containerRect,
+                offsetX,
+                offsetY,
+                moved: false
+            };
+
+            element.classList.add('dragging');
+            document.addEventListener('pointermove', onFloatingDragMove);
+            document.addEventListener('pointerup', endFloatingDrag, { once: true });
+            event.preventDefault();
+        }
+
+        function startFloatingResize(event, element) {
+            if (event.button !== 0) return;
+
+            const pageIdx = Number(element.dataset.page);
+            const blockIdx = Number(element.dataset.block);
+            const block = pageData[pageIdx]?.blocks?.[blockIdx];
+            if (!block) return;
+
+            const container = element.closest('.page-container');
+            if (!container) return;
+
+            const elementRect = element.getBoundingClientRect();
+            floatingResizeState = {
+                pageIdx,
+                blockIdx,
+                element,
+                container,
+                startX: event.clientX,
+                startWidth: elementRect.width,
+                aspectRatio: block.aspectRatio || (elementRect.width / Math.max(1, elementRect.height))
+            };
+
+            element.classList.add('resizing');
+            document.addEventListener('pointermove', onFloatingResizeMove);
+            document.addEventListener('pointerup', endFloatingResize, { once: true });
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
+        function onFloatingResizeMove(event) {
+            if (!floatingResizeState) return;
+
+            const { pageIdx, blockIdx, element, container, startX, startWidth, aspectRatio } = floatingResizeState;
+            const block = pageData[pageIdx]?.blocks?.[blockIdx];
+            if (!block) return;
+
+            const containerRect = container.getBoundingClientRect();
+            const dx = event.clientX - startX;
+
+            let nextWidth = Math.max(80, Math.round(startWidth + dx));
+            let nextHeight = Math.max(80, Math.round(nextWidth / aspectRatio));
+
+            const maxWidth = Math.max(80, Math.round(containerRect.width - block.x - 8));
+            const maxHeight = Math.max(80, Math.round(containerRect.height - block.y - 8));
+
+            if (nextWidth > maxWidth) {
+                nextWidth = maxWidth;
+                nextHeight = Math.max(80, Math.round(nextWidth / aspectRatio));
+            }
+
+            if (nextHeight > maxHeight) {
+                nextHeight = maxHeight;
+                nextWidth = Math.max(80, Math.round(nextHeight * aspectRatio));
+            }
+
+            block.width = nextWidth;
+            block.height = nextHeight;
+            element.style.width = `${nextWidth}px`;
+            element.style.height = `${nextHeight}px`;
+        }
+
+        function endFloatingResize() {
+            if (!floatingResizeState) return;
+
+            floatingResizeState.element.classList.remove('resizing');
+            document.removeEventListener('pointermove', onFloatingResizeMove);
+            floatingResizeState = null;
+        }
+
+        function onFloatingDragMove(event) {
+            if (!floatingDragState) return;
+
+            const { pageIdx, blockIdx, element, containerRect, offsetX, offsetY } = floatingDragState;
+            const block = pageData[pageIdx]?.blocks?.[blockIdx];
+            if (!block) return;
+
+            const maxX = Math.max(0, containerRect.width - element.offsetWidth);
+            const maxY = Math.max(0, containerRect.height - element.offsetHeight);
+            const nextX = Math.min(Math.max(0, event.clientX - containerRect.left - offsetX), maxX);
+            const nextY = Math.min(Math.max(0, event.clientY - containerRect.top - offsetY), maxY);
+
+            block.x = Math.round(nextX);
+            block.y = Math.round(nextY);
+            element.style.left = `${block.x}px`;
+            element.style.top = `${block.y}px`;
+            floatingDragState.moved = true;
+        }
+
+        function endFloatingDrag() {
+            if (!floatingDragState) return;
+
+            floatingDragState.element.classList.remove('dragging');
+            document.removeEventListener('pointermove', onFloatingDragMove);
+            floatingDragState = null;
         }
 
         function renderNewsletter() {
@@ -820,7 +1086,11 @@
                 let aiButton = page.isAmbiente ? 
                     `<button id="ai-btn-${pIdx}" onclick="generateAmbienteContent(${pIdx})" class="ai-btn mb-4 w-full py-2 bg-gradient-to-r from-green-600 to-blue-600 text-white font-extrabold rounded-lg shadow-sm hover:shadow-md transition-all text-xs">✨ GERAR 5 NOTÍCIAS DAS FONTES (IA)</button>` : '';
 
-                let blocksHtml = page.blocks.map((block, bIdx) => renderBlock(block, pIdx, bIdx)).join('');
+                let blocksHtml = page.blocks
+                    .map((block, bIdx) => ({ block, bIdx }))
+                    .filter(item => item.block.type !== 'floating_image')
+                    .map(item => renderBlock(item.block, pIdx, item.bIdx))
+                    .join('');
 
                 article.innerHTML = `
                     <div class="page-management-tools">
@@ -835,6 +1105,7 @@
                             <img src="https://static.wixstatic.com/media/a6967f_75229c4789a54802b26ae2ca35bb74d3~mv2.png" class="header-img">
                             <div class="header-line"></div>
                         </div>
+                        <div class="floating-image-layer">${page.blocks.map((block, bIdx) => block.type === 'floating_image' ? createFloatingImageHtml(pIdx, bIdx, block) : '').join('')}</div>
                         <h2 class="hero-title text-3xl" contenteditable="true">${page.title}</h2>
                         ${aiButton}
                         <div class="blocks-container">${blocksHtml}</div>
@@ -846,6 +1117,7 @@
                             <button class="add-btn" onclick="addBlock(${pIdx}, 'news_right')">+ Notícia Dir</button>
                             <button class="add-btn" onclick="addBlock(${pIdx}, 'news_full')">+ Texto Largo</button>
                             <button class="add-btn" onclick="addBlock(${pIdx}, 'grid2_img')">+ 2 Imagens</button>
+                            <button class="add-btn" onclick="addBlock(${pIdx}, 'floating_image')">+ Imagem Flutuante</button>
                         </div>
                     </div>
                     <div class="footer-wrapper">
@@ -861,6 +1133,24 @@
                     cell.addEventListener('click', function(e) {
                         e.stopPropagation();
                         this.classList.toggle('selected');
+                    });
+                });
+
+                document.querySelectorAll('.floating-drag-handle').forEach(handle => {
+                    handle.addEventListener('pointerdown', function(e) {
+                        const block = this.closest('.floating-image-block');
+                        if (block) {
+                            startFloatingDrag(e, block);
+                        }
+                    });
+                });
+
+                document.querySelectorAll('.floating-image-resize-handle').forEach(handle => {
+                    handle.addEventListener('pointerdown', function(e) {
+                        const block = this.closest('.floating-image-block');
+                        if (block) {
+                            startFloatingResize(e, block);
+                        }
                     });
                 });
             }, 100);
@@ -925,6 +1215,9 @@
                         </div>
                     </div>`;
                     break;
+                case 'floating_image':
+                    content = '';
+                    break;
             }
 
             return `<div class="content-block">${actions}${content}</div>`;
@@ -936,7 +1229,8 @@
                 news_right: { type: 'news_right', text: 'Inserir texto...', img: '[Imagem]', textSize: 11, textColor: '#1e293b' },
                 news_full: { type: 'news_full', text: 'Inserir texto completo...', textSize: 11, textColor: '#1e293b' },
                 grid2_img: { type: 'grid2_img', img1: '[Foto 1]', img2: '[Foto 2]' },
-                news_grid: { type: 'news_grid', items: [] }
+                news_grid: { type: 'news_grid', items: [] },
+                floating_image: { type: 'floating_image', src: '', title: 'Imagem Flutuante', x: 80, y: 180, width: 220, height: 220 }
             };
             pageData[pIdx].blocks.push(templates[type]);
             renderNewsletter();
