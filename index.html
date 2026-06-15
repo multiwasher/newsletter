@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Editor Somengil News - Controlo Total</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&family=Merriweather:wght@400;700&family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -370,6 +370,42 @@
             z-index: 3;
         }
 
+        .floating-text-block {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .floating-text-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 8px;
+            border-bottom: 1px solid #e2e8f0;
+            background: #ffffff;
+            flex-wrap: wrap;
+        }
+
+        .floating-text-toolbar select,
+        .floating-text-toolbar input[type="color"] {
+            height: 24px;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            background: #fff;
+            font-size: 11px;
+            color: #334155;
+            padding: 0 4px;
+        }
+
+        .floating-text-content {
+            flex: 1;
+            min-height: 80px;
+            padding: 10px;
+            outline: none;
+            white-space: pre-wrap;
+            word-break: break-word;
+            background: rgba(255, 255, 255, 0.95);
+        }
+
         .text-editor {
             display: flex;
             flex-direction: column;
@@ -514,10 +550,11 @@
         @media print {
             .admin-controls, .block-actions, .add-zone, .btn-mini, .page-management-tools, .ai-btn, [id^="ai-btn"], .page-date-tag,
             .text-editor-toolbar, .floating-image-header, .floating-image-resize-handle, .floating-drag-handle,
-            .floating-image-upload input, .toggle-add-zone { display: none !important; }
+            .floating-image-upload input, .floating-text-toolbar, .toggle-add-zone { display: none !important; }
             .page-container { margin: 0 !important; box-shadow: none !important; page-break-after: always; }
             .floating-image-block { border: none !important; box-shadow: none !important; background: transparent !important; }
             .floating-image-upload { height: 100% !important; min-height: 0 !important; background: transparent !important; }
+            .floating-text-content { background: transparent !important; }
         }
     </style>
 </head>
@@ -976,7 +1013,7 @@
                         <span class="floating-drag-handle">⠿ Arrastar</span>
                         <div class="floating-image-header-right">
                             <span>${title}</span>
-                            <button class="floating-delete-btn" title="Apagar imagem flutuante" onclick="removeFloatingImage(event, ${pIdx}, ${bIdx})">✕</button>
+                            <button class="floating-delete-btn" title="Apagar imagem flutuante" onclick="removeFloatingBlock(event, ${pIdx}, ${bIdx})">✕</button>
                         </div>
                     </div>
                     <label class="floating-image-upload" style="height: calc(100% - 31px);">
@@ -986,6 +1023,64 @@
                     <div class="floating-image-resize-handle" title="Redimensionar"></div>
                 </div>
             `;
+        }
+
+        function createFloatingTextHtml(pIdx, bIdx, block) {
+            const left = block.x ?? 120;
+            const top = block.y ?? 200;
+            const width = block.width ?? 280;
+            const height = block.height ?? 180;
+            const title = block.title || 'Texto Flutuante';
+            const text = block.text || 'Escreva aqui...';
+            const fontFamily = block.fontFamily || 'Inter, sans-serif';
+            const fontSize = block.fontSize || 16;
+            const textColor = block.textColor || '#1e293b';
+
+            const fontOptions = [
+                { label: 'Inter', value: 'Inter, sans-serif' },
+                { label: 'Georgia', value: 'Georgia, serif' },
+                { label: 'Merriweather', value: 'Merriweather, serif' },
+                { label: 'Montserrat', value: 'Montserrat, sans-serif' },
+                { label: 'Courier New', value: '"Courier New", monospace' }
+            ].map(option => `<option value="${option.value}" ${option.value === fontFamily ? 'selected' : ''}>${option.label}</option>`).join('');
+
+            const sizeOptions = [12, 14, 16, 18, 20, 24, 28, 32]
+                .map(size => `<option value="${size}" ${size === fontSize ? 'selected' : ''}>${size}px</option>`)
+                .join('');
+
+            return `
+                <div class="floating-image-block floating-text-block" data-page="${pIdx}" data-block="${bIdx}" style="left: ${left}px; top: ${top}px; width: ${width}px; height: ${height}px;">
+                    <div class="floating-image-header">
+                        <span class="floating-drag-handle">⠿ Arrastar</span>
+                        <div class="floating-image-header-right">
+                            <span>${title}</span>
+                            <button class="floating-delete-btn" title="Apagar texto flutuante" onclick="removeFloatingBlock(event, ${pIdx}, ${bIdx})">✕</button>
+                        </div>
+                    </div>
+                    <div class="floating-text-toolbar">
+                        <select onchange="updateFloatingTextStyle(${pIdx}, ${bIdx}, 'fontFamily', this.value)">${fontOptions}</select>
+                        <select onchange="updateFloatingTextStyle(${pIdx}, ${bIdx}, 'fontSize', this.value)">${sizeOptions}</select>
+                        <input type="color" value="${textColor}" onchange="updateFloatingTextStyle(${pIdx}, ${bIdx}, 'textColor', this.value)">
+                    </div>
+                    <div class="floating-text-content" contenteditable="true" oninput="updateFloatingText(${pIdx}, ${bIdx}, this)" style="font-family: ${fontFamily}; font-size: ${fontSize}px; color: ${textColor};">${text}</div>
+                    <div class="floating-image-resize-handle" title="Redimensionar"></div>
+                </div>
+            `;
+        }
+
+        function updateFloatingText(pIdx, bIdx, element) {
+            const block = pageData[pIdx]?.blocks?.[bIdx];
+            if (!block || block.type !== 'floating_text') return;
+
+            block.text = element.innerText;
+        }
+
+        function updateFloatingTextStyle(pIdx, bIdx, property, value) {
+            const block = pageData[pIdx]?.blocks?.[bIdx];
+            if (!block || block.type !== 'floating_text') return;
+
+            block[property] = property === 'fontSize' ? Number(value) : value;
+            renderNewsletter();
         }
 
         function startFloatingDrag(event, element) {
@@ -1038,7 +1133,9 @@
                 element,
                 container,
                 startX: event.clientX,
+                startY: event.clientY,
                 startWidth: elementRect.width,
+                startHeight: elementRect.height,
                 aspectRatio: block.aspectRatio || (elementRect.width / Math.max(1, elementRect.height))
             };
 
@@ -1052,12 +1149,26 @@
         function onFloatingResizeMove(event) {
             if (!floatingResizeState) return;
 
-            const { pageIdx, blockIdx, element, container, startX, startWidth, aspectRatio } = floatingResizeState;
+            const { pageIdx, blockIdx, element, container, startX, startY, startWidth, startHeight, aspectRatio } = floatingResizeState;
             const block = pageData[pageIdx]?.blocks?.[blockIdx];
             if (!block) return;
 
             const containerRect = container.getBoundingClientRect();
             const dx = event.clientX - startX;
+            const dy = event.clientY - startY;
+
+            if (block.type === 'floating_text') {
+                const maxWidth = Math.max(120, Math.round(containerRect.width - block.x - 8));
+                const maxHeight = Math.max(100, Math.round(containerRect.height - block.y - 8));
+                const nextWidth = Math.min(maxWidth, Math.max(120, Math.round(startWidth + dx)));
+                const nextHeight = Math.min(maxHeight, Math.max(100, Math.round(startHeight + dy)));
+
+                block.width = nextWidth;
+                block.height = nextHeight;
+                element.style.width = `${nextWidth}px`;
+                element.style.height = `${nextHeight}px`;
+                return;
+            }
 
             let nextWidth = Math.max(80, Math.round(startWidth + dx));
             let nextHeight = Math.max(80, Math.round(nextWidth / aspectRatio));
@@ -1089,7 +1200,7 @@
             floatingResizeState = null;
         }
 
-        function removeFloatingImage(event, pIdx, bIdx) {
+        function removeFloatingBlock(event, pIdx, bIdx) {
             if (event) {
                 event.preventDefault();
                 event.stopPropagation();
@@ -1137,7 +1248,7 @@
 
                 let blocksHtml = page.blocks
                     .map((block, bIdx) => ({ block, bIdx }))
-                    .filter(item => item.block.type !== 'floating_image')
+                    .filter(item => item.block.type !== 'floating_image' && item.block.type !== 'floating_text')
                     .map(item => renderBlock(item.block, pIdx, item.bIdx))
                     .join('');
 
@@ -1154,7 +1265,11 @@
                             <img src="https://static.wixstatic.com/media/a6967f_75229c4789a54802b26ae2ca35bb74d3~mv2.png" class="header-img">
                             <div class="header-line"></div>
                         </div>
-                        <div class="floating-image-layer">${page.blocks.map((block, bIdx) => block.type === 'floating_image' ? createFloatingImageHtml(pIdx, bIdx, block) : '').join('')}</div>
+                        <div class="floating-image-layer">${page.blocks.map((block, bIdx) => {
+                            if (block.type === 'floating_image') return createFloatingImageHtml(pIdx, bIdx, block);
+                            if (block.type === 'floating_text') return createFloatingTextHtml(pIdx, bIdx, block);
+                            return '';
+                        }).join('')}</div>
                         <h2 class="hero-title text-3xl" contenteditable="true">${page.title}</h2>
                         ${aiButton}
                         <div class="blocks-container">${blocksHtml}</div>
@@ -1167,6 +1282,7 @@
                             <button class="add-btn" onclick="addBlock(${pIdx}, 'news_full')">+ Texto Largo</button>
                             <button class="add-btn" onclick="addBlock(${pIdx}, 'grid2_img')">+ 2 Imagens</button>
                             <button class="add-btn" onclick="addBlock(${pIdx}, 'floating_image')">+ Imagem Flutuante</button>
+                            <button class="add-btn" onclick="addBlock(${pIdx}, 'floating_text')">+ Texto Flutuante</button>
                         </div>
                     </div>
                     <div class="footer-wrapper">
@@ -1265,6 +1381,7 @@
                     </div>`;
                     break;
                 case 'floating_image':
+                case 'floating_text':
                     content = '';
                     break;
             }
@@ -1279,7 +1396,19 @@
                 news_full: { type: 'news_full', text: 'Inserir texto completo...', textSize: 11, textColor: '#1e293b' },
                 grid2_img: { type: 'grid2_img', img1: '[Foto 1]', img2: '[Foto 2]' },
                 news_grid: { type: 'news_grid', items: [] },
-                floating_image: { type: 'floating_image', src: '', title: 'Imagem Flutuante', x: 80, y: 180, width: 220, height: 220 }
+                floating_image: { type: 'floating_image', src: '', title: 'Imagem Flutuante', x: 80, y: 180, width: 220, height: 220 },
+                floating_text: {
+                    type: 'floating_text',
+                    title: 'Texto Flutuante',
+                    text: 'Escreva aqui...',
+                    x: 120,
+                    y: 220,
+                    width: 280,
+                    height: 180,
+                    fontFamily: 'Inter, sans-serif',
+                    fontSize: 16,
+                    textColor: '#1e293b'
+                }
             };
             pageData[pIdx].blocks.push(templates[type]);
             renderNewsletter();
