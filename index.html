@@ -478,8 +478,12 @@
         }
 
         @media print {
-            .admin-controls, .block-actions, .add-zone, .btn-mini, .page-management-tools, .ai-btn, [id^="ai-btn"], .page-date-tag { display: none !important; }
+            .admin-controls, .block-actions, .add-zone, .btn-mini, .page-management-tools, .ai-btn, [id^="ai-btn"], .page-date-tag,
+            .text-editor-toolbar, .floating-image-header, .floating-image-resize-handle, .floating-drag-handle,
+            .floating-image-upload input, .toggle-add-zone { display: none !important; }
             .page-container { margin: 0 !important; box-shadow: none !important; page-break-after: always; }
+            .floating-image-block { border: none !important; box-shadow: none !important; background: transparent !important; }
+            .floating-image-upload { height: 100% !important; min-height: 0 !important; background: transparent !important; }
         }
     </style>
 </head>
