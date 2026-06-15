@@ -479,6 +479,35 @@
 
         .btn-mini:hover { background: #6abae7; color: white; }
 
+        .mystery-block {
+            position: relative;
+            max-width: 100%;
+        }
+
+        .mystery-resize-handle {
+            position: absolute;
+            right: 0;
+            bottom: 0;
+            width: 12px;
+            height: 12px;
+            background: rgba(29, 78, 216, 0.9);
+            border: 1px solid white;
+            border-radius: 2px;
+            cursor: se-resize;
+            z-index: 5;
+            transition: all 0.1s;
+        }
+
+        .mystery-resize-handle:hover {
+            width: 16px;
+            height: 16px;
+            background: rgba(29, 78, 216, 1);
+        }
+
+        .mystery-block.resizing {
+            opacity: 0.9;
+        }
+
         .add-zone {
             border: 2px dashed #e2e8f0;
             padding: 12px;
@@ -657,6 +686,7 @@
 
         let floatingDragState = null;
         let floatingResizeState = null;
+        let mysteryResizeState = null;
 
         async function generateAmbienteContent(pIdx) {
             const btn = document.getElementById(`ai-btn-${pIdx}`);
@@ -1200,6 +1230,60 @@
             floatingResizeState = null;
         }
 
+        function startMysteryResize(event, element, pIdx, bIdx) {
+            if (event.button !== 0) return;
+            if (!event.target.classList.contains('mystery-resize-handle')) return;
+
+            const block = pageData[pIdx]?.blocks?.[bIdx];
+            if (!block) return;
+
+            const container = element.closest('.content-block') || element.closest('.page-content');
+            if (!container) return;
+
+            const elementRect = element.getBoundingClientRect();
+            const containerRect = container.getBoundingClientRect();
+
+            mysteryResizeState = {
+                pIdx,
+                bIdx,
+                element,
+                container,
+                startX: event.clientX,
+                startWidth: elementRect.width,
+                containerWidth: containerRect.width
+            };
+
+            element.style.cursor = 'grabbing';
+            element.classList.add('resizing');
+            document.addEventListener('pointermove', onMysteryResizeMove);
+            document.addEventListener('pointerup', endMysteryResize, { once: true });
+            event.preventDefault();
+        }
+
+        function onMysteryResizeMove(event) {
+            if (!mysteryResizeState) return;
+
+            const { pIdx, bIdx, element, container, startX, startWidth, containerWidth } = mysteryResizeState;
+            const block = pageData[pIdx]?.blocks?.[bIdx];
+            if (!block) return;
+
+            const dx = event.clientX - startX;
+            const percentChange = (dx / containerWidth) * 100;
+            let nextPercent = Math.max(30, Math.min(100, (block.width || 50) + percentChange));
+
+            block.width = Math.round(nextPercent);
+            renderNewsletter();
+        }
+
+        function endMysteryResize() {
+            if (!mysteryResizeState) return;
+
+            mysteryResizeState.element.style.cursor = 'grab';
+            mysteryResizeState.element.classList.remove('resizing');
+            document.removeEventListener('pointermove', onMysteryResizeMove);
+            mysteryResizeState = null;
+        }
+
         function removeFloatingBlock(event, pIdx, bIdx) {
             if (event) {
                 event.preventDefault();
@@ -1359,9 +1443,12 @@
                     content = `<div class="bg-blue-50/50 p-4 border border-blue-100 rounded-lg"><h3 class="font-black text-[#6abae7] text-center mb-4">${block.title}</h3><div class="quiz-grid">${items}</div></div>`;
                     break;
                 case 'fun_mystery':
-                    content = `<div class="bg-slate-800 text-white p-4 rounded-lg flex gap-4 items-center">
-                        ${createImageUploadHtml(pIdx, bIdx, 'imgSrc', 'Foto', block.imgSrc, block.img || 'Clique para carregar', 'min-height: 5rem; width: 5rem; height: 5rem; flex-shrink: 0;')}
+                    const mysteryWidth = block.width || 50;
+                    const mysterySizeBase = Math.max(40, Math.round(mysteryWidth / 5));
+                    content = `<div class="mystery-block bg-slate-800 text-white p-4 rounded-lg flex gap-4 items-center" data-page="${pIdx}" data-block="${bIdx}" style="width: ${mysteryWidth}%; cursor: grab;" onpointerdown="startMysteryResize(event, this, ${pIdx}, ${bIdx})">
+                        ${createImageUploadHtml(pIdx, bIdx, 'imgSrc', 'Foto', block.imgSrc, block.img || 'Clique para carregar', `min-height: ${mysterySizeBase}px; width: ${mysterySizeBase}px; height: ${mysterySizeBase}px; flex-shrink: 0;`)}
                         <div><p class="text-[10px] text-blue-300 font-bold uppercase">${block.title}</p>${createTextEditorHtml(pIdx, bIdx, 'name', block.name, { size: block.nameSize || 18, color: block.nameColor || '#ffffff', extraStyle: 'font-weight: 700; background: transparent;' })}</div>
+                        <div class="mystery-resize-handle" title="Redimensionar"></div>
                     </div>`;
                     break;
                 case 'fun_wordsearch':
