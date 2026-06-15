@@ -285,6 +285,34 @@
             cursor: grab;
         }
 
+        .floating-image-header-right {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .floating-delete-btn {
+            width: 18px;
+            height: 18px;
+            border: 1px solid #fca5a5;
+            background: #fee2e2;
+            color: #b91c1c;
+            border-radius: 4px;
+            font-size: 11px;
+            line-height: 1;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+        }
+
+        .floating-delete-btn:hover {
+            background: #fecaca;
+            border-color: #f87171;
+        }
+
         .floating-image-upload {
             position: relative;
             display: block;
@@ -940,7 +968,10 @@
                 <div class="floating-image-block" data-page="${pIdx}" data-block="${bIdx}" style="left: ${left}px; top: ${top}px; width: ${width}px; height: ${height}px;">
                     <div class="floating-image-header">
                         <span class="floating-drag-handle">⠿ Arrastar</span>
-                        <span>${title}</span>
+                        <div class="floating-image-header-right">
+                            <span>${title}</span>
+                            <button class="floating-delete-btn" title="Apagar imagem flutuante" onclick="removeFloatingImage(event, ${pIdx}, ${bIdx})">✕</button>
+                        </div>
                     </div>
                     <label class="floating-image-upload" style="height: calc(100% - 31px);">
                         <input type="file" accept="image/*" onchange="handleImageUpload(event, ${pIdx}, ${bIdx}, 'src')">
@@ -1050,6 +1081,14 @@
             floatingResizeState.element.classList.remove('resizing');
             document.removeEventListener('pointermove', onFloatingResizeMove);
             floatingResizeState = null;
+        }
+
+        function removeFloatingImage(event, pIdx, bIdx) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            removeBlock(pIdx, bIdx);
         }
 
         function onFloatingDragMove(event) {
