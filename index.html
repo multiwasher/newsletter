@@ -185,6 +185,63 @@
             text-align: center;
         }
 
+        .image-upload {
+            position: relative;
+            min-height: 120px;
+            border: 1px dashed #cbd5e1;
+            border-radius: 4px;
+            background: #f8fafc;
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .image-upload:hover {
+            border-color: #6abae7;
+            background: #eff6ff;
+        }
+
+        .image-upload-input {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+            z-index: 2;
+        }
+
+        .image-upload-preview {
+            width: 100%;
+            height: 100%;
+            min-height: 120px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .image-upload-placeholder {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            padding: 12px;
+            color: #64748b;
+            text-align: center;
+            pointer-events: none;
+        }
+
+        .image-upload-placeholder strong {
+            color: #334155;
+            font-size: 0.8rem;
+        }
+
+        .image-upload-placeholder span {
+            font-size: 0.7rem;
+            line-height: 1.2;
+        }
+
         .quiz-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -611,6 +668,42 @@
             return { grid, words: placedWords };
         }
 
+        function createImageUploadHtml(pIdx, bIdx, field, label, imageSrc, placeholderText, wrapperStyle = '') {
+            const preview = imageSrc
+                ? `<img src="${imageSrc}" alt="${label}" class="image-upload-preview">`
+                : `<div class="image-upload-placeholder"><strong>${label}</strong><span>${placeholderText}</span></div>`;
+
+            const styleAttr = wrapperStyle ? ` style="${wrapperStyle}"` : '';
+
+            return `
+                <label class="image-upload"${styleAttr}>
+                    <input type="file" accept="image/*" class="image-upload-input" onchange="handleImageUpload(event, ${pIdx}, ${bIdx}, '${field}')">
+                    ${preview}
+                </label>
+            `;
+        }
+
+        function handleImageUpload(event, pIdx, bIdx, field) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+
+            if (!file.type.startsWith('image/')) {
+                alert('Selecione um ficheiro de imagem válido.');
+                event.target.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(loadEvent) {
+                const block = pageData[pIdx]?.blocks?.[bIdx];
+                if (!block) return;
+
+                block[field] = loadEvent.target.result;
+                renderNewsletter();
+            };
+            reader.readAsDataURL(file);
+        }
+
         function renderNewsletter() {
             const container = document.getElementById('newsletter-body');
             container.innerHTML = '';
@@ -680,10 +773,10 @@
 
             switch(block.type) {
                 case 'news_left':
-                    content = `<div class="grid grid-cols-2 gap-4"><div class="image-placeholder">${block.img}</div><div class="text-[11px] leading-relaxed" contenteditable="true">${block.text}</div></div>`;
+                    content = `<div class="grid grid-cols-2 gap-4">${createImageUploadHtml(pIdx, bIdx, 'imgSrc', 'Foto', block.imgSrc, block.img || 'Clique para carregar')}<div class="text-[11px] leading-relaxed" contenteditable="true">${block.text}</div></div>`;
                     break;
                 case 'news_right':
-                    content = `<div class="grid grid-cols-2 gap-4"><div class="text-[11px] leading-relaxed" contenteditable="true">${block.text}</div><div class="image-placeholder">${block.img}</div></div>`;
+                    content = `<div class="grid grid-cols-2 gap-4"><div class="text-[11px] leading-relaxed" contenteditable="true">${block.text}</div>${createImageUploadHtml(pIdx, bIdx, 'imgSrc', 'Foto', block.imgSrc, block.img || 'Clique para carregar')}</div>`;
                     break;
                 case 'news_full':
                     content = `<div class="text-[11px] leading-relaxed pl-3 py-2 ${aiStyle}" contenteditable="true">${block.text}</div>`;
@@ -699,7 +792,7 @@
                     content = `<div class="bg-green-50/40 p-3 border border-green-200 rounded-lg ${aiStyle}"><div class="text-[11px] leading-relaxed">${gridItems}</div></div>`;
                     break;
                 case 'grid2_img':
-                    content = `<div class="grid grid-cols-2 gap-2"><div class="image-placeholder">${block.img1}</div><div class="image-placeholder">${block.img2}</div></div>`;
+                    content = `<div class="grid grid-cols-2 gap-2">${createImageUploadHtml(pIdx, bIdx, 'imgSrc1', 'Foto 1', block.imgSrc1, block.img1 || 'Clique para carregar')}${createImageUploadHtml(pIdx, bIdx, 'imgSrc2', 'Foto 2', block.imgSrc2, block.img2 || 'Clique para carregar')}</div>`;
                     break;
                 case 'fun_who':
                     const items = block.questions.map(q => `<div class="quiz-item"><span class="quiz-question">${q}</span><div class="quiz-answer" contenteditable="true">...</div></div>`).join('');
@@ -707,7 +800,7 @@
                     break;
                 case 'fun_mystery':
                     content = `<div class="bg-slate-800 text-white p-4 rounded-lg flex gap-4 items-center">
-                        <div class="image-placeholder w-20 h-20 bg-slate-700 text-[8px]">${block.img}</div>
+                        ${createImageUploadHtml(pIdx, bIdx, 'imgSrc', 'Foto', block.imgSrc, block.img || 'Clique para carregar', 'min-height: 5rem; width: 5rem; height: 5rem; flex-shrink: 0;')}
                         <div><p class="text-[10px] text-blue-300 font-bold uppercase">${block.title}</p><p class="text-lg font-bold" contenteditable="true">${block.name}</p></div>
                     </div>`;
                     break;
