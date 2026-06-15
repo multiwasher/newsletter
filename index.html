@@ -592,6 +592,75 @@
             .text-editor-toolbar, .floating-image-header, .floating-image-resize-handle, .floating-drag-handle,
             .floating-image-upload input, .floating-text-toolbar, .toggle-add-zone { display: none !important; }
             .page-container { margin: 0 !important; box-shadow: none !important; page-break-after: always; }
+            .content-block { page-break-inside: avoid; break-inside: avoid-page; }
+            .content-block.block-fun-who,
+            .content-block.block-fun-mystery,
+            .content-block.block-fun-wordsearch {
+                page-break-inside: avoid;
+                break-inside: avoid-page;
+                margin-bottom: 8px !important;
+                padding: 6px !important;
+            }
+            .content-block.block-fun-who,
+            .content-block.block-fun-mystery {
+                page-break-after: avoid;
+                break-after: avoid-page;
+            }
+
+            /* Auto-fit print mode for the 3 fun blocks */
+            .content-block.block-fun-who h3,
+            .content-block.block-fun-wordsearch h3 {
+                margin-bottom: 6px !important;
+                font-size: 18px !important;
+                line-height: 1.1 !important;
+            }
+
+            .content-block.block-fun-who .quiz-grid {
+                gap: 8px !important;
+                font-size: 9px !important;
+            }
+
+            .content-block.block-fun-who .quiz-answer {
+                min-height: 14px !important;
+            }
+
+            .content-block.block-fun-wordsearch p {
+                margin-bottom: 6px !important;
+            }
+
+            .content-block.block-fun-wordsearch .ws-grid {
+                gap: 2px !important;
+            }
+
+            .content-block.block-fun-wordsearch .ws-grid .flex {
+                gap: 2px !important;
+            }
+
+            .content-block.block-fun-wordsearch .ws-cell {
+                width: 20px !important;
+                height: 20px !important;
+                font-size: 8px !important;
+                line-height: 1 !important;
+            }
+
+            .content-block.block-fun-wordsearch .min-w-40 {
+                min-width: 120px !important;
+            }
+
+            .content-block.block-fun-wordsearch .bg-blue-100 {
+                padding: 2px 6px !important;
+                font-size: 9px !important;
+            }
+
+            .content-block.block-fun-mystery .mystery-block {
+                padding: 10px !important;
+                gap: 10px !important;
+            }
+
+            .content-block.block-fun-mystery .text-editor-input {
+                font-size: 16px !important;
+            }
+
             .floating-image-block { border: none !important; box-shadow: none !important; background: transparent !important; }
             .floating-image-upload { height: 100% !important; min-height: 0 !important; background: transparent !important; }
             .floating-text-content { background: transparent !important; }
@@ -1500,7 +1569,8 @@
                     break;
             }
 
-            return `<div class="content-block">${actions}${content}</div>`;
+            const blockTypeClass = block.type ? ` block-${block.type.replace(/_/g, '-')}` : '';
+            return `<div class="content-block${blockTypeClass}">${actions}${content}</div>`;
         }
 
         function addBlock(pIdx, type) {
